@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>一言</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400&family=Cormorant+Garamond:ital,wght@0,300;1,300&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f0ede8;
+      --text: #1a1815;
+      --muted: #8a8580;
+      --accent: #b8a898;
+      --line: #d8d3cc;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      font-family: 'Noto Serif TC', serif;
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(ellipse at 20% 30%, rgba(200,190,175,0.18) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 70%, rgba(180,165,150,0.12) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── TOP BAR：日期在上，時鐘在下 ── */
+    .top-bar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.4rem 2rem 0;
+      opacity: 0;
+      animation: fadeDown 1s ease 0.3s forwards;
+    }
+
+    /* 日期列（最上方） */
+    .date-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1rem;           /* 放大：原 0.7rem */
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      font-family: 'Noto Serif TC', serif;
+      font-weight: 300;
+    }
+
+    .date-dot {
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--line);
+      flex-shrink: 0;
+    }
+
+    .top-bar-sep {
+      width: 36px;
+      height: 1px;
+      background: var(--line);
+      margin: 0.6rem auto 0.5rem;
+    }
+
+    /* 時鐘（日期正下方） */
+    .clock {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: clamp(2.8rem, 7vw, 4.4rem);   /* 放大：原 clamp(2rem,5vw,3.2rem) */
+      letter-spacing: 0.1em;
+      color: var(--text);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum";
+    }
+
+    .clock-colon {
+      display: inline-block;
+      animation: blink 1s step-start infinite;
+    }
+
+    /* ── MAIN WRAPPER ── */
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 11rem 2rem 5rem;   /* 加大頂部留白配合更高的 top-bar */
+    }
+
+    /* ── CARD ── */
+    .card {
+      max-width: 720px;
+      width: 100%;
+      text-align: center;
+      position: relative;
+    }
+
+    .card::before {
+      content: '';
+      display: block;
+      width: 1px; height: 44px;
+      background: linear-gradient(to bottom, transparent, var(--accent));
+      margin: 0 auto 2.2rem;
+      opacity: 0;
+      animation: fadeIn 1s ease 0.7s forwards;
+    }
+
+    .card::after {
+      content: '';
+      display: block;
+      width: 1px; height: 44px;
+      background: linear-gradient(to top, transparent, var(--accent));
+      margin: 2.2rem auto 0;
+      opacity: 0;
+      animation: fadeIn 1s ease 0.7s forwards;
+    }
+
+    /* 主語錄 */
+    .quote {
+      font-size: clamp(1.35rem, 3vw, 2rem);    /* 放大：原 clamp(1.05rem,2.4vw,1.5rem) */
+      font-weight: 300;
+      line-height: 2;
+      letter-spacing: 0.07em;
+      color: var(--text);
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+    .quote.visible { opacity: 1; transform: translateY(0); }
+
+    /* 翻譯（斜體） */
+    .translation {
+      margin-top: 1.6rem;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: clamp(1.05rem, 2.2vw, 1.4rem);  /* 放大：原 clamp(0.85rem,1.8vw,1.05rem) */
+      font-weight: 300;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      line-height: 1.85;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.8s ease 0.2s, transform 0.8s ease 0.2s;
+    }
+    .translation.visible { opacity: 1; transform: translateY(0); }
+
+    /* 出處 */
+    .source {
+      margin-top: 2.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.9rem;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.8s ease 0.35s, transform 0.8s ease 0.35s;
+    }
+    .source.visible { opacity: 1; transform: translateY(0); }
+
+    .source-line { display: block; width: 30px; height: 1px; background: var(--line); }
+    .source-text {
+      font-size: 0.88rem;          /* 放大：原 0.7rem */
+      letter-spacing: 0.18em;
+      color: var(--accent);
+    }
+
+    /* 狀態文字 */
+    .status {
+      font-size: 0.82rem;          /* 放大：原 0.68rem */
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      margin-top: 1rem;
+      min-height: 1.2em;
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+    .status.show { opacity: 1; }
+
+    /* ── 換一句按鈕 ── */
+    .refresh-btn {
+      position: fixed;
+      bottom: 2.2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: none;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 1.1rem;           /* 放大：原 0.88rem */
+      letter-spacing: 0.2em;
+      padding: 0.65rem 2.2rem;
+      cursor: pointer;
+      transition: border-color 0.3s, color 0.3s, letter-spacing 0.3s;
+      opacity: 0;
+      animation: fadeUp 1.2s ease 1s forwards;
+      white-space: nowrap;
+      user-select: none;
+      z-index: 20;
+    }
+    .refresh-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--text);
+      letter-spacing: 0.25em;
+    }
+    .refresh-btn:active:not(:disabled) { opacity: 0.55; }
+    .refresh-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── 載入動畫點 ── */
+    .loading-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin: 0 4px;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    /* ── 四角裝飾 ── */
+    .corner {
+      position: fixed;
+      width: 38px; height: 38px;
+      opacity: 0;
+      animation: fadeIn 1.5s ease 1.1s forwards;
+    }
+    .corner--tl { top: 1rem; left: 1rem; border-top: 1px solid var(--accent); border-left: 1px solid var(--accent); }
+    .corner--tr { top: 1rem; right: 1rem; border-top: 1px solid var(--accent); border-right: 1px solid var(--accent); }
+    .corner--bl { bottom: 1rem; left: 1rem; border-bottom: 1px solid var(--accent); border-left: 1px solid var(--accent); }
+    .corner--br { bottom: 1rem; right: 1rem; border-bottom: 1px solid var(--accent); border-right: 1px solid var(--accent); }
+
+    /* ── 動畫 ── */
+    @keyframes fadeIn  { to { opacity: 1; } }
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.8); }
+      50%       { opacity: 1;   transform: scale(1); }
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="corner corner--tl"></div>
+  <div class="corner corner--tr"></div>
+  <div class="corner corner--bl"></div>
+  <div class="corner corner--br"></div>
+
+  <!-- 頂部資訊欄：日期在上，時鐘在下 -->
+  <div class="top-bar">
+    <div class="date-row">
+      <span id="date-str">----/--/--</span>
+      <span class="date-dot"></span>
+      <span id="weekday-str">---</span>
+    </div>
+    <div class="top-bar-sep"></div>
+    <div class="clock">
+      <span id="hh">--</span><span class="clock-colon">:</span><span
+        id="mm">--</span><span class="clock-colon">:</span><span id="ss">--</span>
+    </div>
+  </div>
+
+  <!-- 語錄卡 -->
+  <div class="wrapper">
+    <div class="card">
+      <div class="quote" id="quote">
+        <span class="loading-dot"></span>
+        <span class="loading-dot"></span>
+        <span class="loading-dot"></span>
+      </div>
+      <div class="translation" id="translation"></div>
+      <div class="source" id="source">
+        <span class="source-line"></span>
+        <span class="source-text" id="source-text"></span>
+        <span class="source-line"></span>
+      </div>
+      <div class="status" id="status"></div>
+    </div>
+  </div>
+
+  <button class="refresh-btn" id="refresh-btn">換一句 ↻</button>
+
+  <script>
+    /* ════════════════════════════════
+       時鐘
+    ════════════════════════════════ */
+    const WEEKDAYS = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+    function pad(n) { return String(n).padStart(2,'0'); }
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('hh').textContent = pad(now.getHours());
+      document.getElementById('mm').textContent = pad(now.getMinutes());
+      document.getElementById('ss').textContent = pad(now.getSeconds());
+      const y = now.getFullYear(), mo = pad(now.getMonth()+1), d = pad(now.getDate());
+      document.getElementById('date-str').textContent = `${y} / ${mo} / ${d}`;
+      document.getElementById('weekday-str').textContent = WEEKDAYS[now.getDay()];
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    /* ════════════════════════════════
+       語錄系統
+       使用 Quotable（CORS-safe） + Claude 翻譯
+    ════════════════════════════════ */
+    const CLAUDE_API = 'https://api.anthropic.com/v1/messages';
+
+    // ⚠️ 請將您的 API Key 填入下方引號中
+    const ANTHROPIC_API_KEY = 'YOUR_API_KEY_HERE';
+
+    // 多個備援 API，依序嘗試
+    const QUOTE_APIS = [
+      // Quotable — 開放 CORS，英文名言
+      { url: 'https://api.quotable.kurokeita.dev/api/quotes/random', parse: d => ({ text: d.quote.content, source: d.quote.author }) },
+      // ZenQuotes — 備援
+      { url: 'https://zenquotes.io/api/random',                       parse: d => ({ text: d[0].q, source: d[0].a }) },
+    ];
+
+    function setStatus(msg, show = true) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.classList.toggle('show', show);
+    }
+
+    function showContent(quote, translation, source) {
+      const qEl  = document.getElementById('quote');
+      const tEl  = document.getElementById('translation');
+      const sEl  = document.getElementById('source');
+      const sTxt = document.getElementById('source-text');
+
+      qEl.classList.remove('visible');
+      tEl.classList.remove('visible');
+      sEl.classList.remove('visible');
+
+      setTimeout(() => {
+        qEl.innerHTML    = quote;
+        tEl.innerHTML    = translation || '';
+        sTxt.textContent = source || '';
+
+        // double-rAF 確保 transition 觸發
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          qEl.classList.add('visible');
+          if (translation) tEl.classList.add('visible');
+          if (source)      sEl.classList.add('visible');
+        }));
+      }, 320);
+    }
+
+    async function translateWithClaude(text) {
+      setStatus('正在翻譯…');
+      try {
+        console.log('[翻譯] 開始翻譯:', text.slice(0, 60) + '...');
+        const res = await fetch(CLAUDE_API, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true',
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1000,
+            messages: [{
+              role: 'user',
+              content: `請將以下英文句子翻譯成優美的繁體中文，只回傳譯文，不含任何說明或額外文字：\n\n${text}`
+            }]
+          })
+        });
+        if (!res.ok) {
+          const errBody = await res.text();
+          console.error('[翻譯] API 錯誤', res.status, errBody);
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        const result = data?.content?.[0]?.text?.trim() || '';
+        console.log('[翻譯] 成功:', result.slice(0, 60));
+        setStatus('', false);
+        return result;
+      } catch(e) {
+        console.error('[翻譯] 失敗，將顯示原文:', e.message);
+        setStatus('翻譯不可用，顯示原文', true);
+        return ''; // 回傳空字串 → 呼叫端將只顯示英文原文，不卡住
+      }
+    }
+
+    async function fetchQuote() {
+      for (const api of QUOTE_APIS) {
+        try {
+          console.log('[語錄] 嘗試 API:', api.url);
+          const res = await fetch(api.url, { signal: AbortSignal.timeout(6000) });
+          if (!res.ok) { console.warn('[語錄] 回應失敗', res.status, api.url); continue; }
+          const data = await res.json();
+          const parsed = api.parse(data);
+          console.log('[語錄] 成功取得:', parsed.text?.slice(0, 60));
+          return parsed;
+        } catch(e) {
+          console.error('[語錄] API 例外，嘗試下一個:', api.url, e.message);
+        }
+      }
+      console.error('[語錄] 所有 API 均失敗');
+      return null;
+    }
+
+    let isLoading = false;
+
+    async function loadQuote() {
+      if (isLoading) return;
+      isLoading = true;
+
+      const btn = document.getElementById('refresh-btn');
+      btn.disabled    = true;
+      btn.textContent = '載入中…';
+
+      // 重置顯示
+      const qEl = document.getElementById('quote');
+      qEl.classList.remove('visible');
+      document.getElementById('translation').classList.remove('visible');
+      document.getElementById('source').classList.remove('visible');
+      setStatus('', false);
+
+      setTimeout(() => {
+        qEl.innerHTML = `<span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>`;
+        requestAnimationFrame(() => requestAnimationFrame(() => qEl.classList.add('visible')));
+      }, 200);
+
+      try {
+        const result = await fetchQuote();
+
+        if (!result || !result.text) {
+          showContent('無法取得名句，請稍後再試。', '', '');
+          setStatus('網路連線失敗', true);
+        } else {
+          const isChinese = /[\u4e00-\u9fff]/.test(result.text);
+          // 翻譯失敗時 translation 為空字串，英文原文仍會正常顯示
+          const translation = isChinese ? '' : await translateWithClaude(result.text);
+          showContent(result.text, translation, result.source || '');
+          // 翻譯失敗時清除狀態（已在 translateWithClaude 內設定提示）
+          if (!translation && !isChinese) {
+            // 狀態訊息已由 translateWithClaude 設定，無需重複
+          } else {
+            setStatus('', false);
+          }
+        }
+      } catch(e) {
+        console.error('loadQuote 例外:', e);
+        showContent('發生錯誤，請重試。', '', '');
+        setStatus('載入失敗', true);
+      } finally {
+        isLoading       = false;
+        btn.disabled    = false;
+        btn.textContent = '換一句 ↻';
+      }
+    }
+
+    // 事件綁定（不使用 inline onclick，相容沙盒環境）
+    document.getElementById('refresh-btn').addEventListener('click', loadQuote);
+
+    // 首次載入
+    loadQuote();
+  </script>
+</body>
+</html>
